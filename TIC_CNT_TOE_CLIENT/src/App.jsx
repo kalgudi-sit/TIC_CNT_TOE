@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 import Square from "./components/Square";
+import { io } from "socket.io-client";
+import Swal from "sweetalert2";
 
 const matrix = [
   [1, 2, 3],
@@ -13,6 +15,10 @@ function App() {
   const [currentPlayer, setCurrentPlayer] = useState("CIRCLE");
   const [finishedState, setFinishedState] = useState(null);
   const [finishedArrayState, setFinishedArrayState] = useState([]);
+  const [playOnline, setPlayOnline] = useState(false);
+  const [socket, setSocket] = useState(null);
+  const [playerName, setPlayerName] = useState("");
+  const [opponentName, setOpponentName] = useState(null);
 
   useEffect(() => {
     const winner = checkWinner();
@@ -24,6 +30,20 @@ function App() {
       console.log(winner);
     }
   }, [gameState]);
+
+  const takePlayerName = async () => {
+    const result = await Swal.fire({
+      title: "Enter your name",
+      input: "text",
+      showCancelButton: true,
+      inputValidator: (value) => {
+        if (!value) {
+          return "You need to write something!";
+        }
+      },
+    });
+    return result;
+  };
 
   const checkWinner = () => {
     // for rows
@@ -100,6 +120,68 @@ function App() {
       return "DRAW";
     }
   };
+
+  socket?.on("connect", function () {
+    setPlayOnline(true);
+  });
+
+  const playOnlineHandler = async () => {
+    const result = await takePlayerName();
+    console.log(result);
+
+    if (!result.isConfirmed) {
+      return;
+    }
+    const username = result.value;
+    setPlayerName(username);
+
+    const newSocket = io("http://localhost:3000", {
+      // newSocket is the Socket.io's => client socket instance
+      autoConnect: true,
+    });
+
+    newSocket?.emit("request_to_play", {
+      playerName: username,
+    });
+
+    setSocket(newSocket);
+  };
+
+  if (!playOnline) {
+    return (
+      <div className="min-h-screen bg-white text-black">
+        <div className="grid grid-cols-2 min-h-screen">
+          <div className="bg-black min-h-screen text-white flex justify-center items-center">
+            <h1 className=" text-5xl"> TIC CNT TOE</h1>
+          </div>
+          <div className=" bg-white flex justify-center items-center flex-col ">
+            {/* <h2 className=" my-0">Connect With Friends</h2> */}
+            <button
+              onClick={playOnlineHandler}
+              className=" bg-black text-white hover:bg-blue-600 p-6 text-3xl rounded-lg"
+            >
+              Play Online
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (playOnline && !opponentName) {
+    return (
+      <div className="min-h-screen bg-white text-black">
+        <div className="grid grid-cols-2 min-h-screen">
+          <div className="bg-black min-h-screen text-white flex justify-center items-center">
+            <h1 className=" text-5xl"> TIC CNT TOE</h1>
+          </div>
+          <div className=" bg-white flex justify-center items-center flex-col ">
+            <h1 className=" text-5xl"> Waiting for opponent ...</h1>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white text-black">
