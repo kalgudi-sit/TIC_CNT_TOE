@@ -19,6 +19,7 @@ function App() {
   const [socket, setSocket] = useState(null);
   const [playerName, setPlayerName] = useState("");
   const [opponentName, setOpponentName] = useState(null);
+  const [playingAs, setPlayingAs] = useState(null);
 
   useEffect(() => {
     const winner = checkWinner();
@@ -121,13 +122,38 @@ function App() {
     }
   };
 
-  socket?.on("connect", function () {
+  socket?.on("connect", () => {
     setPlayOnline(true);
+  });
+
+  socket?.on("opponentFound", (data) => {
+    setOpponentName(data.opponentName);
+    setPlayingAs(data.playingAs);
+  });
+
+  socket?.on("playerMoveFromServer", (data) => {
+    setGameState((prevGameState) => {
+      let newGameState = [...prevGameState];
+      const rowId = Math.floor(data.state.id / 3);
+      const colId = data.state.id % 3;
+      newGameState[rowId][colId] = data.state.sign;
+      return newGameState;
+    });
+    setCurrentPlayer(data.state.sign === "CIRCLE" ? "CROSS" : "CIRCLE");
+  });
+
+  socket?.on("opponentLeftMatch", () => {
+    if (finishedState === null) {
+      setFinishedState("opponentLeftMatch");
+    }
+  });
+
+  socket?.on("opponentNotFound", () => {
+    setOpponentName(null);
   });
 
   const playOnlineHandler = async () => {
     const result = await takePlayerName();
-    console.log(result);
 
     if (!result.isConfirmed) {
       return;
@@ -191,12 +217,20 @@ function App() {
             TIC CNT TOE
           </h1>
           <div className="flex justify-between items-center w-[400px] my-10">
-            <div className="bg-black py-2 px-4 text-white rounded-lg">
-              Kalgudi
+            <div
+              className={` py-2 px-4 text-white rounded-lg ${
+                currentPlayer === playingAs ? "bg-blue-600" : "bg-black"
+              }`}
+            >
+              {playerName}
             </div>
             ---- v/s ----
-            <div className="bg-black py-2 px-4 text-white rounded-lg ">
-              Bhoopa
+            <div
+              className={` py-2 px-4 text-white rounded-lg ${
+                currentPlayer !== playingAs ? "bg-blue-600" : "bg-black"
+              }`}
+            >
+              {opponentName}
             </div>
           </div>
           <div className=" my-10">
@@ -207,6 +241,7 @@ function App() {
                     <Square
                       key={rowIndex * 3 + colIndex}
                       id={rowIndex * 3 + colIndex}
+                      socket={socket}
                       finishedState={finishedState}
                       setFinishedState={setFinishedState}
                       currentPlayer={currentPlayer}
@@ -215,6 +250,8 @@ function App() {
                       setGameState={setGameState}
                       finishedArrayState={finishedArrayState}
                       setFinishedArrayState={setFinishedArrayState}
+                      playingAs={playingAs}
+                      currentElement={box}
                     />
                   );
                 });
@@ -228,6 +265,19 @@ function App() {
               <h1></h1>
             )}
             {finishedState === "DRAW" ? <h1>It's a DRAW</h1> : <h1></h1>}
+            {finishedState === "opponentLeftMatch" ? (
+              <h1>Opponent Left Match</h1>
+            ) : (
+              <h1></h1>
+            )}
+            {finishedState === null ? (
+              <h1 className="text-black">
+                You're playing as{" "}
+                <p className="inline text-red-500">{playingAs}</p>
+              </h1>
+            ) : (
+              <h1></h1>
+            )}
           </div>
         </div>
       </div>
