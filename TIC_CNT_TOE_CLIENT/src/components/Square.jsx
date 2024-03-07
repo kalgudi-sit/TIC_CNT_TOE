@@ -5,7 +5,10 @@ import { RxCross1 } from "react-icons/rx";
 const Square = (props) => {
   const {
     id,
+    currentElement,
     currentPlayer,
+    socket,
+    playingAs,
     setCurrentPlayer,
     finishedState,
     setFinishedState,
@@ -17,13 +20,23 @@ const Square = (props) => {
   const [icon, setIcon] = useState(null);
 
   const makeMove = () => {
+    if(playingAs !== currentPlayer) {
+      return;
+    }
+
     if (finishedState) {
       return;
     }
 
-    const rowId = Math.floor(id / 3);
-    const colId = id % 3;
     const currentPlayerState = currentPlayer;
+
+    socket.emit("playerMoveFromClient", {
+      state: {
+        id: id,
+        sign: currentPlayerState,
+      },
+    });
+
     if (!icon) {
       if (currentPlayer === "CIRCLE") {
         setIcon(<FaRegCircle size={50} />);
@@ -33,8 +46,11 @@ const Square = (props) => {
         setCurrentPlayer("CIRCLE");
       }
     }
+
     setGameState((prevGameState) => {
       let newGameState = [...prevGameState];
+      const rowId = Math.floor(id / 3);
+      const colId = id % 3;
       newGameState[rowId][colId] = currentPlayerState;
       return newGameState;
     });
@@ -50,7 +66,13 @@ const Square = (props) => {
           : " bg-emerald-300 hover:bg-teal-200 "
       } w-[100px] h-[100px] rounded-lg flex justify-center items-center hover:cursor-pointer`}
     >
-      {icon}
+      {currentElement === "CIRCLE" ? (
+        <FaRegCircle size={50} />
+      ) : currentElement === "CROSS" ? (
+        <RxCross1 size={60} />
+      ) : (
+        icon
+      )}
     </div>
   );
 };
